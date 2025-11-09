@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多参考图生视频验证页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .form-section {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .reference-images {
+            margin-bottom: 20px;
+        }
+
+        .upload-section {
+            margin-bottom: 15px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .upload-area:hover {
+            border-color: #5a6fd8;
+            background-color: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #4caf50;
+            background-color: #f1f8e9;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .preview-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .image-input {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .image-input.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .add-image-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        .add-image-btn:hover:not(:disabled) {
+            background: #5a6fd8;
+        }
+
+        .add-image-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            padding: 30px;
+            border-top: 1px solid #e0e0e0;
+            display: none;
+        }
+
+        .result-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .video-container {
+            margin-bottom: 20px;
+        }
+
+        .video-container video {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .download-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+
+        .download-btn:hover {
+            background: #45a049;
+        }
+
+        .error-message {
+            color: #f44336;
+            padding: 15px;
+            background: #ffebee;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .radio-option:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 6px;
+            width: auto;
+        }
+
+        .radio-option input[type="radio"]:checked + span {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .radio-option:has(input[type="radio"]:checked) {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+
+        /* 复选框样式 */
+        .checkbox-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            width: fit-content;
+        }
+
+        .checkbox-option:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+
+        .checkbox-option input[type="checkbox"] {
+            margin-right: 6px;
+            width: auto;
+        }
+
+        .checkbox-option input[type="checkbox"]:checked + span {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .checkbox-option:has(input[type="checkbox"]:checked) {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+            margin-top: 8px;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>多参考图生视频验证页面</h1>
+            <p>上传参考图，输入提示词，生成专属视频</p>
+        </div>
+
+        <div class="form-section">
+            <form id="videoForm">
+                <div class="form-group">
+                    <label for="apiKey">API Key:</label>
+                    <input type="password" id="apiKey" placeholder="请输入您的API密钥" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="prompt">提示词:</label>
+                    <textarea id="prompt" placeholder="描述您想要生成的视频内容..." required></textarea>
+                </div>
+
+                <!-- 新增参数选择区域 -->
+                <div class="form-group">
+                    <label>分辨率:</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="resolution" value="480p" checked>
+                            <span>480p</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="resolution" value="720p">
+                            <span>720p</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>比例:</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="ratio" value="16:9" checked>
+                            <span>16:9</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="ratio" value="4:3">
+                            <span>4:3</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="ratio" value="1:1">
+                            <span>1:1</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="ratio" value="3:4">
+                            <span>3:4</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="ratio" value="9:16">
+                            <span>9:16</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="ratio" value="21:9">
+                            <span>21:9</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="duration">时间: <span id="durationValue">3</span>秒</label>
+                    <input type="range" id="duration" name="duration" min="3" max="12" value="3" class="slider">
+                </div>
+
+                <div class="form-group">
+                    <label for="seed">随机数种子:</label>
+                    <input type="text" id="seed" name="seed" value="-1" placeholder="-1">
+                </div>
+
+
+                <!-- 多视频生成选项 -->
+                <div class="form-group">
+                    <label>视频数量:</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="videoCount" value="1" checked>
+                            <span>1个</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="videoCount" value="2">
+                            <span>2个</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="videoCount" value="4">
+                            <span>4个</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="upload-section">
+                    <label>上传参考图（最多4张）</label>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text">点击或拖拽图片到此处上传</div>
+                    </div>
+                    <input type="file" id="fileInput" class="file-input" multiple accept="image/*" onchange="handleFileSelect(event)">
+                    <div class="preview-images" id="previewContainer"></div>
+                </div>
+
+
+
+                <button type="submit" class="submit-btn" id="submitBtn">生成视频</button>
+            </form>
+
+            <div class="loading" id="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>正在生成视频，请稍候...</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+            <div class="status-message" id="statusMessage"></div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <h2>生成结果</h2>
+            <div class="video-container">
+                <video id="resultVideo" controls></video>
+            </div>
+            <a href="#" class="download-btn" id="downloadBtn" download>下载视频</a>
+        </div>
+    </div>
+
+    <script>
+        class VideoGenerator {
+            constructor() {
+                this.maxImages = 4;
+                this.currentImages = 1;
+                this.uploadedFiles = [];
+                this.taskIds = []; // 用于存储多个任务ID
+                this.pollInterval = null;
+                this.pollCount = 0;
+                this.maxPolls = 24;
+                this.videoCount = 1; // 默认生成1个视频
+                
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.setupDragDrop();
+                this.setupParameterControls();
+            }
+
+            setupParameterControls() {
+                // 设置时间滑动条事件
+                const durationSlider = document.getElementById('duration');
+                const durationValue = document.getElementById('durationValue');
+                
+                durationSlider.addEventListener('input', (e) => {
+                    durationValue.textContent = e.target.value;
+                });
+            }
+
+            buildPromptWithParameters() {
+                const basePrompt = document.getElementById('prompt').value.trim();
+                if (!basePrompt) return '';
+            
+                // 获取参数值
+                const resolution = document.querySelector('input[name="resolution"]:checked').value;
+                const ratio = document.querySelector('input[name="ratio"]:checked').value;
+                const duration = document.getElementById('duration').value;
+                const seed = document.getElementById('seed').value || '-1';
+            
+                // 构建最终提示词
+                let finalPrompt = basePrompt;
+                finalPrompt += ` --rs ${resolution} --rt ${ratio} --dur ${duration} --seed ${seed}`;
+            
+                return finalPrompt;
+            }
+
+            bindEvents() {
+                document.getElementById('videoForm').addEventListener('submit', (e) => this.handleSubmit(e));
+                document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileSelect(e));
+            }
+
+            setupDragDrop() {
+                const uploadArea = document.querySelector('.upload-area');
+                
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.add('dragover');
+                    });
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.remove('dragover');
+                    });
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+                    this.processFiles(files);
+                });
+            }
+
+            handleFileSelect(e) {
+                const files = Array.from(e.target.files);
+                this.processFiles(files);
+            }
+
+            processFiles(files) {
+                const remainingSlots = this.maxImages - this.uploadedFiles.length;
+                const filesToProcess = files.slice(0, remainingSlots);
+
+                filesToProcess.forEach(file => {
+                    if (file.size > 10 * 1024 * 1024) {
+                        this.showError(`文件 ${file.name} 超过10MB限制`);
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.addUploadedFile(file, e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            addUploadedFile(file, dataUrl) {
+                this.uploadedFiles.push(file);
+                this.updatePreview();
+            }
+
+            removeUploadedFile(index) {
+                this.uploadedFiles.splice(index, 1);
+                this.updatePreview();
+            }
+
+            updatePreview() {
+                const container = document.getElementById('previewContainer');
+                container.innerHTML = '';
+
+                this.uploadedFiles.forEach((file, index) => {
+                    const preview = document.createElement('div');
+                    preview.className = 'preview-item';
+                    preview.innerHTML = `
+                        <img src="${URL.createObjectURL(file)}" alt="Preview">
+                        <button type="button" class="remove-btn" onclick="videoGenerator.removeUploadedFile(${index})">×</button>
+                    `;
+                    container.appendChild(preview);
+                });
+
+                this.updateAddButton();
+            }
+
+
+
+            async handleSubmit(e) {
+                e.preventDefault();
+                
+                const apiKey = document.getElementById('apiKey').value.trim();
+                const finalPrompt = this.buildPromptWithParameters();
+                
+                // 获取视频数量
+                this.videoCount = parseInt(document.querySelector('input[name="videoCount"]:checked').value);
+                
+                if (!apiKey || !finalPrompt) {
+                    this.showError('请填写API密钥和提示词');
+                    return;
+                }
+
+                if (this.uploadedFiles.length === 0) {
+                    this.showError('请至少上传一张参考图');
+                    return;
+                }
+
+                if (this.uploadedFiles.length > this.maxImages) {
+                    this.showError(`最多支持${this.maxImages}张参考图`);
+                    return;
+                }
+
+                this.startLoading();
+                this.hideError();
+                
+                try {
+                    // 创建多个任务
+                    this.taskIds = [];
+                    for (let i = 0; i < this.videoCount; i++) {
+                        const taskId = await this.uploadAndCreateTask(apiKey, finalPrompt);
+                        this.taskIds.push(taskId);
+                    }
+                    this.startPolling(apiKey);
+                } catch (error) {
+                    this.showError(`创建任务失败: ${error.message}`);
+                    this.stopLoading();
+                }
+            }
+
+            async uploadAndCreateTask(apiKey, prompt) {
+                const formData = new FormData();
+                formData.append('api_key', apiKey);
+                formData.append('prompt', prompt);
+
+                // 添加上传的文件
+                this.uploadedFiles.forEach((file, index) => {
+                    formData.append(`image_file${index + 1}`, file);
+                });
+
+                const response = await fetch('/upload_and_create_task', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.id;
+            }
+
+
+
+            startPolling(apiKey) {
+                this.pollCount = 0;
+                this.showStatus('正在生成视频，请稍候...');
+                
+                // 存储每个任务的状态
+                this.taskStatuses = new Array(this.taskIds.length).fill('pending');
+                this.videoUrls = new Array(this.taskIds.length).fill(null);
+                
+                this.pollInterval = setInterval(async () => {
+                    this.pollCount++;
+                    
+                    try {
+                        // 查询所有任务的状态
+                        let allCompleted = true;
+                        let hasFailed = false;
+                        
+                        for (let i = 0; i < this.taskIds.length; i++) {
+                            // 如果任务已经完成，跳过查询
+                            if (this.taskStatuses[i] === 'succeeded' || this.taskStatuses[i] === 'failed') {
+                                continue;
+                            }
+                            
+                            const response = await fetch(`/task_status/${this.taskIds[i]}?api_key=${encodeURIComponent(apiKey)}`);
+
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                            }
+
+                            const data = await response.json();
+                            
+                            this.taskStatuses[i] = data.status;
+                            
+                            if (data.status === 'succeeded') {
+                                this.videoUrls[i] = data.content.video_url;
+                            } else if (data.status === 'failed') {
+                                hasFailed = true;
+                            } else {
+                                allCompleted = false;
+                            }
+                        }
+                        
+                        if (allCompleted && !hasFailed) {
+                            this.showResult(this.videoUrls);
+                            this.stopPolling();
+                        } else if (hasFailed) {
+                            this.showError('任务执行失败');
+                            this.stopPolling();
+                        } else if (this.pollCount >= this.maxPolls) {
+                            this.showError('任务超时，请稍后重试');
+                            this.stopPolling();
+                        } else {
+                            this.showStatus(`正在处理中... (${this.pollCount}/${this.maxPolls})`);
+                        }
+                    } catch (error) {
+                        this.showError('查询任务状态失败: ' + error.message);
+                        this.stopPolling();
+                    }
+                }, 5000);
+            }
+
+            stopPolling() {
+                if (this.pollInterval) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                }
+                this.stopLoading();
+            }
+
+            startLoading() {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('submitBtn').disabled = true;
+            }
+
+            stopLoading() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submitBtn').disabled = false;
+            }
+
+            showStatus(message) {
+                const statusEl = document.getElementById('statusMessage');
+                statusEl.textContent = message;
+                statusEl.style.display = 'block';
+            }
+
+            showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                document.getElementById('statusMessage').style.display = 'none';
+            }
+
+            hideError() {
+                document.getElementById('errorMessage').style.display = 'none';
+            }
+
+            showResult(videoUrls) {
+                const resultSection = document.getElementById('resultSection');
+                resultSection.innerHTML = '<h2>生成结果</h2>';
+                
+                // 为每个视频创建预览和下载链接
+                videoUrls.forEach((videoUrl, index) => {
+                    if (videoUrl) {
+                        const videoContainer = document.createElement('div');
+                        videoContainer.className = 'video-container';
+                        videoContainer.innerHTML = `
+                            <h3>视频 ${index + 1}</h3>
+                            <video controls>
+                                <source src="${videoUrl}" type="video/mp4">
+                                您的浏览器不支持视频播放。
+                            </video>
+                            <a href="${videoUrl}" class="download-btn" download="video_${index + 1}.mp4">下载视频 ${index + 1}</a>
+                        `;
+                        resultSection.appendChild(videoContainer);
+                    }
+                });
+                
+                resultSection.style.display = 'block';
+                document.getElementById('statusMessage').style.display = 'none';
+            }
+        }
+
+        // 初始化应用
+        const videoGenerator = new VideoGenerator();
+    </script>
+</body>
+</html>

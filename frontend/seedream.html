@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeedDream 4.0 图像生成</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .form-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .file-upload {
+            border: 2px dashed #e1e5e9;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-upload:hover {
+            border-color: #667eea;
+            background-color: rgba(102, 126, 234, 0.05);
+        }
+
+        .file-upload.dragover {
+            border-color: #667eea;
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .file-upload-text {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .file-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .file-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .file-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e1e5e9;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .result-item {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .result-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .result-item img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .result-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #c33;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #3c3;
+        }
+
+        @media (max-width: 768px) {
+            .form-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 SeedDream 4.0</h1>
+            <p>AI 驱动的图像生成工具，支持文本提示词和参考图像</p>
+        </div>
+
+        <form id="seedreamForm">
+            <div class="form-section">
+                <div class="left-panel">
+                    <div class="input-group">
+                        <label for="prompt">✨ 文本提示词 *</label>
+                        <textarea id="prompt" name="prompt" placeholder="描述您想要生成的图像，例如：一只可爱的小猫坐在花园里，阳光明媚，高质量，4K" required></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="seed">🎲 随机种子</label>
+                        <input type="number" id="seed" name="seed" value="42" min="0" max="2147483647">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="scale">⚖️ 引导强度</label>
+                        <input type="number" id="scale" name="scale" value="7.5" min="1" max="20" step="0.1">
+                    </div>
+                </div>
+
+                <div class="right-panel">
+                    <div class="input-group">
+                        <label>🖼️ 参考图像（可选）</label>
+                        <div class="file-upload" id="fileUpload">
+                            <input type="file" id="imageFiles" multiple accept="image/*">
+                            <div class="file-upload-text">
+                                <div style="font-size: 48px; margin-bottom: 10px;">📁</div>
+                                <div>点击选择图片或拖拽到此处</div>
+                                <div style="font-size: 14px; color: #999; margin-top: 5px;">支持 JPG, PNG, GIF 格式</div>
+                            </div>
+                        </div>
+                        <div class="file-preview" id="filePreview"></div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="generate-btn" id="generateBtn">
+                🚀 开始生成
+            </button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div>正在生成图像，请稍候...</div>
+        </div>
+
+        <div id="message"></div>
+
+        <div class="result-section" id="resultSection" style="display: none;">
+            <h2>🎉 生成结果</h2>
+            <div class="result-grid" id="resultGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+
+        // 文件上传处理
+        const fileUpload = document.getElementById('fileUpload');
+        const fileInput = document.getElementById('imageFiles');
+        const filePreview = document.getElementById('filePreview');
+
+        fileUpload.addEventListener('click', () => fileInput.click());
+        fileUpload.addEventListener('dragover', handleDragOver);
+        fileUpload.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+            addFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            addFiles(files);
+        }
+
+        function addFiles(files) {
+            files.forEach(file => {
+                if (selectedFiles.length < 5) { // 限制最多5张图片
+                    selectedFiles.push(file);
+                }
+            });
+            updateFilePreview();
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFilePreview();
+        }
+
+        function updateFilePreview() {
+            filePreview.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <img src="${e.target.result}" alt="预览图">
+                        <button type="button" class="remove-btn" onclick="removeFile(${index})">×</button>
+                    `;
+                    filePreview.appendChild(fileItem);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 表单提交处理
+        document.getElementById('seedreamForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const prompt = document.getElementById('prompt').value.trim();
+            const seed = parseInt(document.getElementById('seed').value);
+            const scale = parseFloat(document.getElementById('scale').value);
+            
+            if (!prompt) {
+                showMessage('请输入文本提示词', 'error');
+                return;
+            }
+            
+            setLoading(true);
+            
+            try {
+                const formData = new FormData();
+                formData.append('prompt', prompt);
+                formData.append('seed', seed);
+                formData.append('scale', scale);
+                formData.append('return_url', true);
+                
+                selectedFiles.forEach((file, index) => {
+                    formData.append('files', file);
+                });
+                
+                const response = await fetch('/seedream_generate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // 获取响应文本
+                const responseText = await response.text();
+                console.log('原始响应:', responseText);
+                
+                // 尝试解析JSON
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON解析失败:', parseError);
+                    throw new Error(`响应格式错误: ${responseText.substring(0, 100)}`);
+                }
+                
+                if (result.success) {
+                    showMessage('图像生成成功！', 'success');
+                    displayResults(result.data);
+                } else {
+                    const errorMsg = result.message || result.error || '未知错误';
+                    showMessage(`生成失败: ${errorMsg}`, 'error');
+                    console.error('API错误:', result);
+                }
+                
+            } catch (error) {
+                console.error('请求失败:', error);
+                showMessage(`请求失败: ${error.message}`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function setLoading(loading) {
+            const loadingEl = document.getElementById('loading');
+            const generateBtn = document.getElementById('generateBtn');
+            
+            if (loading) {
+                loadingEl.style.display = 'block';
+                generateBtn.disabled = true;
+                generateBtn.textContent = '生成中...';
+            } else {
+                loadingEl.style.display = 'none';
+                generateBtn.disabled = false;
+                generateBtn.textContent = '🚀 开始生成';
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.className = type === 'error' ? 'error-message' : 'success-message';
+            messageEl.textContent = message;
+            messageEl.style.display = 'block';
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function displayResults(data) {
+            const resultSection = document.getElementById('resultSection');
+            const resultGrid = document.getElementById('resultGrid');
+            
+            resultGrid.innerHTML = '';
+            
+            if (data.images && data.images.length > 0) {
+                data.images.forEach((imageUrl, index) => {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+                    resultItem.innerHTML = `
+                        <img src="${imageUrl}" alt="生成的图像 ${index + 1}" loading="lazy">
+                        <div class="result-info">
+                            <div><strong>提示词:</strong> ${data.prompt}</div>
+                            <div><strong>种子:</strong> ${data.seed}</div>
+                            <div><strong>引导强度:</strong> ${data.scale}</div>
+                            ${data.input_images && data.input_images.length > 0 ? `<div><strong>参考图像:</strong> ${data.input_images.length} 张</div>` : ''}
+                        </div>
+                    `;
+                    resultGrid.appendChild(resultItem);
+                });
+                
+                resultSection.style.display = 'block';
+                resultSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // 随机种子生成
+        document.getElementById('seed').addEventListener('dblclick', () => {
+            document.getElementById('seed').value = Math.floor(Math.random() * 2147483647);
+        });
+    </script>
+</body>
+</html>

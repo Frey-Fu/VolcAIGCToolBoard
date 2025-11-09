@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIGC工作台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .tab-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .tab-nav {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            background: white;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 0;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .iframe-container {
+            width: 100%;
+            height: 800px;
+            border: none;
+        }
+
+        .coming-soon {
+            padding: 60px 30px;
+            text-align: center;
+            color: #666;
+        }
+
+        .coming-soon h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .coming-soon p {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 10px;
+            }
+            
+            .tab-nav {
+                flex-direction: column;
+            }
+            
+            .tab-button {
+                text-align: left;
+            }
+            
+            .iframe-container {
+                height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header">
+            <h1>🎨 AIGC工作台</h1>
+            <p>集成多种AI生成功能的统一工作平台</p>
+        </div>
+
+        <div class="tab-container">
+            <div class="tab-nav">
+                <button class="tab-button active" onclick="switchTab('image-to-video')">
+                    📹 参考图生视频
+                </button>
+                <button class="tab-button" onclick="switchTab('gen-video')">
+                    🎥 生视频
+                </button>
+                <button class="tab-button" onclick="switchTab('video-comprehension')">
+                    🎬 视频理解
+                </button>
+                <button class="tab-button" onclick="switchTab('seedream')">
+                    🎨 SeedDream 4.0
+                </button>
+            </div>
+
+            <div id="image-to-video" class="tab-content active">
+                <iframe src="./frontend/reference_image_gen_video.html" class="iframe-container" frameborder="0"></iframe>
+            </div>
+
+            <div id="gen-video" class="tab-content">
+                <iframe src="./frontend/gen_video.html" class="iframe-container" frameborder="0"></iframe>
+            </div>
+
+            <div id="video-comprehension" class="tab-content">
+                <iframe src="./frontend/video_comprehension.html" class="iframe-container" frameborder="0"></iframe>
+            </div>
+
+            <div id="seedream" class="tab-content">
+                <iframe src="./frontend/seedream.html" class="iframe-container" frameborder="0"></iframe>
+            </div>
+
+            <div id="text-to-image" class="tab-content">
+                <div class="coming-soon">
+                    <div class="feature-icon">🖼️</div>
+                    <h3>文本生图功能</h3>
+                    <p>即将推出强大的文本到图像生成功能<br>
+                    支持多种风格和高质量图像输出</p>
+                </div>
+            </div>
+
+            <div id="image-edit" class="tab-content">
+                <div class="coming-soon">
+                    <div class="feature-icon">✏️</div>
+                    <h3>图像编辑功能</h3>
+                    <p>即将推出智能图像编辑工具<br>
+                    包括背景替换、对象移除、风格转换等</p>
+                </div>
+            </div>
+
+            <div id="video-edit" class="tab-content">
+                <div class="coming-soon">
+                    <div class="feature-icon">🎬</div>
+                    <h3>视频编辑功能</h3>
+                    <p>即将推出AI驱动的视频编辑功能<br>
+                    支持自动剪辑、特效添加、音频处理等</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId) {
+            // 隐藏所有tab内容
+            const allTabs = document.querySelectorAll('.tab-content');
+            allTabs.forEach(tab => tab.classList.remove('active'));
+            
+            // 移除所有按钮的active状态
+            const allButtons = document.querySelectorAll('.tab-button');
+            allButtons.forEach(button => button.classList.remove('active'));
+            
+            // 显示选中的tab内容
+            document.getElementById(tabId).classList.add('active');
+            
+            // 激活对应的按钮
+            event.target.classList.add('active');
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AIGC工作台已加载完成');
+        });
+    </script>
+</body>
+</html>
