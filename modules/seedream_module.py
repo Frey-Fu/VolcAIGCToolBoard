@@ -7,7 +7,6 @@ import time
 from typing import Dict, Any, List, Tuple
 from .base_module import BaseModule
 from volcengine.visual.VisualService import VisualService
-from werkzeug.datastructures import FileStorage
 from .tos_utils import TOSUploader
 
 class SeedreamModule(BaseModule):
@@ -454,7 +453,7 @@ class SeedreamModule(BaseModule):
             self.logger.error(f"解析 multipart 数据失败: {str(e)}")
             return {}
     
-    def _upload_image_to_tos(self, file: FileStorage) -> Dict[str, Any]:
+    def _upload_image_to_tos(self, file) -> Dict[str, Any]:
         """上传图片到 TOS"""
         try:
             if not self.tos_uploader:

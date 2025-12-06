@@ -12,9 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from modules.base_module import BaseModule
-from modules.image_to_video_module import ImageToVideoModule
-from modules.text_to_video_module import TextToVideoModule
-from modules.video_comprehension_module import VideoComprehensionModule
+from modules.ref_i2v_module import RefI2VModule
+from modules.i2v_and_t2v_module import I2VAndT2VModule
+from modules.v2t_module import V2TModule
 
 class ModuleManager:
     def __init__(self, app: FastAPI, config: Dict[str, Any]):
@@ -89,11 +89,11 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     cfg = normalize_config(config)
-    image_to_video_module = ImageToVideoModule(cfg)
+    image_to_video_module = RefI2VModule(cfg)
     module_manager.register_module(image_to_video_module)
-    text_to_video_module = TextToVideoModule(cfg)
+    text_to_video_module = I2VAndT2VModule(cfg)
     module_manager.register_module(text_to_video_module)
-    video_comprehension_module = VideoComprehensionModule(cfg)
+    video_comprehension_module = V2TModule(cfg)
     module_manager.register_module(video_comprehension_module)
     try:
         yield
@@ -119,14 +119,13 @@ module_manager = ModuleManager(app, config)
 def normalize_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
     modules = cfg.get("modules") or {}
     defaults = {
-        "image_to_video": {"enabled": True, "display_name": "图生视频"},
-        "text_to_video": {"enabled": True, "display_name": "文生视频"},
-        "video_comprehension": {"enabled": True, "display_name": "视觉理解"},
+        "ref_i2v_module": {"enabled": True, "display_name": "参考图生视频"},
+        "i2v_and_t2v_module": {"enabled": True, "display_name": "文/图生视频"},
+        "v2t_module": {"enabled": True, "display_name": "视频理解"},
         "seedream": {"enabled": True, "display_name": "SeedDream"},
     }
     for name, meta in defaults.items():
         if name not in modules:
-            # 根据旧配置节点存在性推断是否启用
             enabled = name in cfg or True
             modules[name] = {"enabled": enabled, "display_name": meta["display_name"]}
     cfg["modules"] = modules
@@ -161,7 +160,7 @@ def get_index():
     index_path = os.path.join(os.path.dirname(__file__), 'index.html')
     if not os.path.exists(index_path):
         raise HTTPException(status_code=404, detail="页面不存在")
-    return FileResponse(index_path)
+    return FileResponse(index_path, headers={"Cache-Control": "no-store, must-revalidate"})
 
 frontend_dir = os.path.join(os.path.dirname(__file__), 'frontend')
 if os.path.isdir(frontend_dir):

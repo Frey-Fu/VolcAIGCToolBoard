@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生视频功能 - AIGC工作台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
+        .container { padding: 20px; max-width: 800px; margin: 0 auto; }
+        .content-wrapper { background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 30px; }
+        h2 { color: #333; margin-bottom: 10px; font-size: 24px; }
+        .description { color: #666; margin-bottom: 30px; font-size: 16px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+        .radio-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .radio-group label { display: flex; align-items: center; cursor: pointer; font-weight: normal; }
+        .radio-group input[type="radio"] { margin-right: 8px; }
+        input[type="password"], textarea, select, input[type="number"] { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease; }
+        input[type="password"]:focus, textarea:focus, select:focus, input[type="number"]:focus { outline: none; border-color: #667eea; }
+        textarea { height: 100px; resize: vertical; }
+        .advanced-params { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; }
+        .advanced-params h3 { margin: 0 0 15px 0; color: #495057; font-size: 16px; }
+        .params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        @media (max-width: 768px) { .params-grid { grid-template-columns: 1fr; } .radio-group { flex-direction: column; gap: 10px; } }
+        .seed-input-group { display: flex; gap: 5px; }
+        .seed-input-group input { flex: 1; }
+        .seed-button { padding: 8px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s ease; }
+        .seed-button:hover { background: #5a6268; }
+        .model-selection { margin-bottom: 15px; }
+        .model-options { display: flex; gap: 20px; flex-wrap: wrap; }
+        .checkbox-group { margin-bottom: 10px; }
+        .checkbox-group label { display: flex; align-items: center; cursor: pointer; font-size: 14px; font-weight: normal; }
+        .checkbox-group input[type="checkbox"] { margin-right: 8px; }
+        .image-upload-section { display: none; margin-bottom: 20px; }
+        .image-upload-group { margin-bottom: 15px; }
+        .image-preview { display: none; margin-top: 10px; }
+        .image-preview img { max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #ddd; }
+        .generate-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 16px; cursor: pointer; transition: all 0.3s ease; display: block; margin: 0 auto; }
+        .generate-button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .generate-button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .status-display { margin-top: 20px; display: none; }
+        .status-box { padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff; }
+        .status-text { font-weight: bold; margin-bottom: 5px; }
+        .status-detail { color: #666; font-size: 14px; }
+        .result-display { margin-top: 20px; display: none; }
+        .result-content { padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center; }
+        .result-content video { max-width: 100%; max-height: 400px; border-radius: 8px; }
+        .download-link { background: #007bff; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; display: inline-block; margin-top: 15px; transition: background-color 0.3s ease; }
+        .download-link:hover { background: #0056b3; }
+        .error-message { color: #dc3545; }
+        .success-message { color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content-wrapper">
+            <h2>🎥 生视频功能</h2>
+            <p class="description">支持文生视频和高级图生视频功能</p>
+            <div class="form-group"><label>选择功能：</label><div class="radio-group"><label><input type="radio" name="video-type" value="text_to_video" checked> 📝 文生视频</label><label><input type="radio" name="video-type" value="image_to_video_first_frame"> 🖼️ 图生视频（首帧）</label><label><input type="radio" name="video-type" value="image_to_video_first_last_frame"> 🎬 图生视频（首尾帧）</label></div></div>
+            <div class="form-group"><label for="video-api-key">API Key：</label><input type="password" id="video-api-key" placeholder="请输入您的API密钥"></div>
+            <div class="form-group"><label for="video-prompt">视频描述：</label><textarea id="video-prompt" placeholder="请输入视频描述，例如：一只可爱的小猫在花园里玩耍"></textarea></div>
+            <div class="advanced-params"><h3>⚙️ 高级参数</h3><div class="params-grid"><div><label>分辨率：</label><select id="video-resolution"><option value="480p">480p</option><option value="720p" selected>720p</option><option value="1080p">1080p</option></select></div><div><label>比例：</label><select id="video-aspect-ratio"><option value="16:9" selected>16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="9:16">9:16</option><option value="21:9">21:9</option></select></div></div><div class="params-grid"><div><label>时间（秒）：</label><select id="video-duration"><option value="3">3秒</option><option value="4">4秒</option><option value="5" selected>5秒</option><option value="6">6秒</option><option value="7">7秒</option><option value="8">8秒</option><option value="9">9秒</option><option value="10">10秒</option><option value="11">11秒</option><option value="12">12秒</option></select></div><div><label>随机数种子：</label><div class="seed-input-group"><input type="number" id="video-seed" placeholder="默认-1" value="-1"><button type="button" class="seed-button" onclick="generateRandomSeed()">🎲</button></div></div></div><div class="model-selection"><label>🤖 模型选择：</label><div class="model-options"><label><input type="radio" name="model-type" value="seedance-1.0-lite" checked> ⚡ Lite版（快速生成，适合预览）</label><label><input type="radio" name="model-type" value="seedance-1.0-pro"> 💎 Pro版（高质量，效果更佳）</label></div></div><div class="checkbox-group"><label><input type="checkbox" id="fixed-camera"> 📹 固定摄像头（减少镜头移动，适合静态场景）</label></div></div>
+            <div id="image-upload-section" class="image-upload-section"><div id="first-frame-upload" class="image-upload-group"><label>首帧图片：</label><input type="file" id="first-frame-input" accept="image/*"><div id="first-frame-preview" class="image-preview"><img id="first-frame-img"></div></div><div id="last-frame-upload" class="image-upload-group" style="display: none;"><label>尾帧图片：</label><input type="file" id="last-frame-input" accept="image/*"><div id="last-frame-preview" class="image-preview"><img id="last-frame-img"></div></div></div>
+            <button id="generate-video-btn" class="generate-button" onclick="generateVideo()">🎬 生成视频</button>
+            <div id="video-status" class="status-display"><div class="status-box"><div id="status-text" class="status-text">正在生成视频...</div><div id="status-detail" class="status-detail">正在创建任务...</div></div></div>
+            <div id="video-result" class="result-display"><h3>生成结果</h3><div id="result-content" class="result-content"></div></div>
+        </div>
+    </div>
+    <script src="./static/error_utils.js"></script>
+    <script>
+        let currentTaskId = null; let statusCheckInterval = null;
+        function handleVideoTypeChange() { const videoType = document.querySelector('input[name="video-type"]:checked').value; const imageUploadSection = document.getElementById('image-upload-section'); const lastFrameUpload = document.getElementById('last-frame-upload'); if (videoType === 'text_to_video') { imageUploadSection.style.display = 'none'; } else if (videoType === 'image_to_video_first_frame') { imageUploadSection.style.display = 'block'; lastFrameUpload.style.display = 'none'; } else if (videoType === 'image_to_video_first_last_frame') { imageUploadSection.style.display = 'block'; lastFrameUpload.style.display = 'block'; } }
+        function handleImagePreview(inputId, previewId, imgId) { const input = document.getElementById(inputId); const preview = document.getElementById(previewId); const img = document.getElementById(imgId); input.addEventListener('change', function(e) { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { img.src = e.target.result; preview.style.display = 'block'; }; reader.readAsDataURL(file); } }); }
+        function generateRandomSeed() { const seed = Math.floor(Math.random() * 1000000); document.getElementById('video-seed').value = seed; }
+        async function generateVideo() {
+            const videoType = document.querySelector('input[name="video-type"]:checked').value;
+            const basePrompt = document.getElementById('video-prompt').value.trim();
+            const generateBtn = document.getElementById('generate-video-btn');
+            const statusDiv = document.getElementById('video-status');
+            const resultDiv = document.getElementById('video-result');
+            if (!basePrompt) { alert('请输入视频描述'); return; }
+            if (videoType !== 'text_to_video') {
+                const firstFrameInput = document.getElementById('first-frame-input');
+                if (!firstFrameInput.files[0]) { alert('请上传首帧图片'); return; }
+                if (videoType === 'image_to_video_first_last_frame') { const lastFrameInput = document.getElementById('last-frame-input'); if (!lastFrameInput.files[0]) { alert('请上传尾帧图片'); return; } }
+            }
+            generateBtn.disabled = true; generateBtn.textContent = '生成中...'; statusDiv.style.display = 'block'; resultDiv.style.display = 'none'; document.getElementById('status-text').textContent = '正在生成视频...'; document.getElementById('status-detail').textContent = '正在创建任务...';
+            try {
+                let response;
+                if (videoType === 'text_to_video') {
+                    const apiKey = document.getElementById('video-api-key').value.trim();
+                    const modelType = document.querySelector('input[name="model-type"]:checked').value;
+                    const resolution = document.getElementById('video-resolution').value;
+                    const aspectRatio = document.getElementById('video-aspect-ratio').value;
+                    const duration = document.getElementById('video-duration').value;
+                    const seed = document.getElementById('video-seed').value || '-1';
+                    const fixedCamera = document.getElementById('fixed-camera').checked;
+                    const requestData = { prompt: basePrompt, api_key: apiKey, model_type: modelType, resolution, aspect_ratio: aspectRatio, duration, seed, fixed_camera: fixedCamera };
+                    response = await fetch('/text_to_video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData) });
+                } else {
+                    const apiKey = document.getElementById('video-api-key').value.trim();
+                    const modelType = document.querySelector('input[name="model-type"]:checked').value;
+                    const resolution = document.getElementById('video-resolution').value;
+                    const aspectRatio = document.getElementById('video-aspect-ratio').value;
+                    const duration = document.getElementById('video-duration').value;
+                    const seed = document.getElementById('video-seed').value || '-1';
+                    const fixedCamera = document.getElementById('fixed-camera').checked;
+                    const formData = new FormData();
+                    formData.append('prompt', basePrompt);
+                    formData.append('api_key', apiKey);
+                    formData.append('video_type', videoType);
+                    formData.append('model_type', modelType);
+                    formData.append('resolution', resolution);
+                    formData.append('aspect_ratio', aspectRatio);
+                    formData.append('duration', duration);
+                    formData.append('seed', seed);
+                    formData.append('fixed_camera', fixedCamera);
+                    formData.append('first_frame', document.getElementById('first-frame-input').files[0]);
+                    if (videoType === 'image_to_video_first_last_frame') { formData.append('last_frame', document.getElementById('last-frame-input').files[0]); }
+                    response = await fetch('/image_to_video_advanced', { method: 'POST', body: formData });
+                }
+                const text = await response.text(); let result = null; try { result = JSON.parse(text); } catch (_) {}
+                if (response.ok && result && result.success) {
+                    currentTaskId = result.task_id; document.getElementById('status-detail').textContent = `任务ID: ${currentTaskId}`; startStatusPolling();
+                } else {
+                    const backendError = result && (result.error || result.message); const moduleName = result && result.module; const statusCode = response.status; const detailText = backendError ? backendError : (text || '未知错误'); const composed = `HTTP ${statusCode}${moduleName ? ` | 模块: ${moduleName}` : ''} | 错误: ${detailText}`; const upstreamInfo = window.ErrorUtils.extractUpstream(result, text); window.ErrorUtils.renderError('result-content', '视频生成失败', composed, upstreamInfo); throw new Error(detailText);
+                }
+            } catch (error) { console.error('生成视频失败:', error); alert(`生成视频失败: ${error.message}`); generateBtn.disabled = false; generateBtn.textContent = '🎬 生成视频'; document.getElementById('video-status').style.display = 'none'; }
+        }
+        function startStatusPolling() {
+            if (statusCheckInterval) { clearInterval(statusCheckInterval); }
+            statusCheckInterval = setInterval(async () => { try { const response = await fetch(`/video_task_status/${currentTaskId}`); const result = await response.json(); updateTaskStatus(result); if (result.status === 'succeeded' || result.status === 'failed') { clearInterval(statusCheckInterval); statusCheckInterval = null; const generateBtn = document.getElementById('generate-video-btn'); generateBtn.disabled = false; generateBtn.textContent = '🎬 生成视频'; } } catch (error) { console.error('查询任务状态失败:', error); } }, 3000);
+        }
+        function updateTaskStatus(result) {
+            const statusText = document.getElementById('status-text'); const statusDetail = document.getElementById('status-detail'); const resultDiv = document.getElementById('video-result'); const resultContent = document.getElementById('result-content');
+            if (result.status === 'pending') { statusText.textContent = '任务排队中...'; statusDetail.textContent = `任务ID: ${currentTaskId}`; }
+            else if (result.status === 'processing') { statusText.textContent = '正在生成视频...'; statusDetail.textContent = `任务ID: ${currentTaskId} | 进度: ${result.progress || 0}%`; }
+            else if (result.status === 'succeeded') { statusText.textContent = '视频生成完成！'; statusDetail.textContent = `任务ID: ${currentTaskId}`; resultDiv.style.display = 'block'; const videoUrl = result.content && result.content.video_url; if (videoUrl) { resultContent.innerHTML = `<div><video controls style="max-width: 100%; max-height: 400px; border-radius: 8px;"><source src="${videoUrl}" type="video/mp4">您的浏览器不支持视频播放。</video><div style="margin-top: 15px;"><a href="${videoUrl}" download class="download-link">下载视频</a></div></div>`; } else { resultContent.innerHTML = '<p class="success-message">✅ 视频生成成功，但未返回下载链接</p>'; } }
+            else if (result.status === 'failed') { statusText.textContent = '视频生成失败'; const baseErr = result.error || '未知错误'; const upstream = result.upstream_error && typeof result.upstream_error === 'object' ? result.upstream_error : null; const code = upstream && upstream.code ? upstream.code : ''; const type = upstream && upstream.type ? upstream.type : ''; const msg = upstream && upstream.message ? upstream.message : ''; const rid = upstream && (upstream.request_id || upstream.requestId) ? (upstream.request_id || upstream.requestId) : ''; statusDetail.textContent = `任务ID: ${currentTaskId} | 错误: ${baseErr}`; resultDiv.style.display = 'block'; const raw = result.error_response_content || ''; const structured = upstream ? (`<div class="status-detail">错误码: ${code} ${type ? `| 类型: ${type}` : ''}</div><div class="status-detail">错误原因: ${msg}</div>${rid ? `<div class=\"status-detail\">Request id: ${rid}</div>` : ''}`) : ''; const rawBlock = raw ? `<div style="margin-top:8px;">错误响应内容：</div><pre style="white-space:pre-wrap; word-break:break-word; background:#fff; border:1px solid #eee; padding:10px; border-radius:6px;">${raw}</pre>` : ''; resultContent.innerHTML = `<div class="status-box" style="border-left-color:#dc3545;">` + `<div class="error-message">❌ ${baseErr}</div>` + `${structured}` + `${rawBlock}` + `</div>`; }
+        }
+        document.addEventListener('DOMContentLoaded', function() { const videoTypeRadios = document.querySelectorAll('input[name="video-type"]'); videoTypeRadios.forEach(radio => { radio.addEventListener('change', handleVideoTypeChange); }); handleImagePreview('first-frame-input', 'first-frame-preview', 'first-frame-img'); handleImagePreview('last-frame-input', 'last-frame-preview', 'last-frame-img'); handleVideoTypeChange(); });
+    </script>
+</body>
+</html>
