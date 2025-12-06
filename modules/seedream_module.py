@@ -215,7 +215,7 @@ class SeedreamModule(BaseModule):
             # 调用 Visual Service API（带重试机制）
             response = self._call_api_with_retry(form)
             if response is None:
-                return self.send_error_response(500, "API调用失败，请稍后重试")
+                return self.build_error_response(500, "API调用失败，请稍后重试")
             
             # 处理响应
             self.logger.debug(f"=== 处理 API 响应 ===")
@@ -261,7 +261,7 @@ class SeedreamModule(BaseModule):
                 if response:
                     error_msg += f"，响应内容: {json.dumps(response, ensure_ascii=False)[:200]}"
                     self.logger.error(f"完整响应内容: {json.dumps(response, ensure_ascii=False)}")
-                return self.send_error_response(500, error_msg)
+                return self.build_error_response(500, error_msg)
                 
         except Exception as e:
             self.logger.error(f"=== SeedDream 生成异常 ===")
@@ -269,7 +269,7 @@ class SeedreamModule(BaseModule):
             self.logger.error(f"异常信息: {str(e)}")
             import traceback
             self.logger.error(f"异常堆栈: {traceback.format_exc()}")
-            error_response = self.send_error_response(500, f"生成失败: {str(e)}")
+            error_response = self.build_error_response(500, f"生成失败: {str(e)}")
             self.logger.debug(f"=== 错误响应 ===")
             self.logger.debug(f"错误响应内容: {json.dumps(error_response, ensure_ascii=False, indent=2)}")
             return error_response

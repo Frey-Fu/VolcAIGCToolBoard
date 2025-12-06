@@ -160,86 +160,87 @@
         </div>
 
         <div class="tab-container">
-            <div class="tab-nav">
-                <button class="tab-button active" onclick="switchTab('image-to-video')">
-                    📹 参考图生视频
-                </button>
-                <button class="tab-button" onclick="switchTab('gen-video')">
-                    🎥 生视频
-                </button>
-                <button class="tab-button" onclick="switchTab('video-comprehension')">
-                    🎬 视频理解
-                </button>
-                <button class="tab-button" onclick="switchTab('seedream')">
-                    🎨 SeedDream 4.0
-                </button>
-            </div>
-
-            <div id="image-to-video" class="tab-content active">
-                <iframe src="./frontend/reference_image_gen_video.html" class="iframe-container" frameborder="0"></iframe>
-            </div>
-
-            <div id="gen-video" class="tab-content">
-                <iframe src="./frontend/gen_video.html" class="iframe-container" frameborder="0"></iframe>
-            </div>
-
-            <div id="video-comprehension" class="tab-content">
-                <iframe src="./frontend/video_comprehension.html" class="iframe-container" frameborder="0"></iframe>
-            </div>
-
-            <div id="seedream" class="tab-content">
-                <iframe src="./frontend/seedream.html" class="iframe-container" frameborder="0"></iframe>
-            </div>
-
-            <div id="text-to-image" class="tab-content">
-                <div class="coming-soon">
-                    <div class="feature-icon">🖼️</div>
-                    <h3>文本生图功能</h3>
-                    <p>即将推出强大的文本到图像生成功能<br>
-                    支持多种风格和高质量图像输出</p>
-                </div>
-            </div>
-
-            <div id="image-edit" class="tab-content">
-                <div class="coming-soon">
-                    <div class="feature-icon">✏️</div>
-                    <h3>图像编辑功能</h3>
-                    <p>即将推出智能图像编辑工具<br>
-                    包括背景替换、对象移除、风格转换等</p>
-                </div>
-            </div>
-
-            <div id="video-edit" class="tab-content">
-                <div class="coming-soon">
-                    <div class="feature-icon">🎬</div>
-                    <h3>视频编辑功能</h3>
-                    <p>即将推出AI驱动的视频编辑功能<br>
-                    支持自动剪辑、特效添加、音频处理等</p>
-                </div>
-            </div>
+            <div class="tab-nav" id="tab-nav"></div>
+            <div id="tab-contents"></div>
         </div>
     </div>
 
     <script>
-        function switchTab(tabId) {
-            // 隐藏所有tab内容
+        function switchTab(tabId, evt) {
             const allTabs = document.querySelectorAll('.tab-content');
             allTabs.forEach(tab => tab.classList.remove('active'));
-            
-            // 移除所有按钮的active状态
             const allButtons = document.querySelectorAll('.tab-button');
             allButtons.forEach(button => button.classList.remove('active'));
-            
-            // 显示选中的tab内容
             document.getElementById(tabId).classList.add('active');
-            
-            // 激活对应的按钮
-            event.target.classList.add('active');
+            if (evt && evt.currentTarget) {
+                evt.currentTarget.classList.add('active');
+            } else {
+                const btn = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+                if (btn) btn.classList.add('active');
+            }
+            try { localStorage.setItem('activeTab', tabId); } catch (_) {}
         }
 
-        // 页面加载完成后的初始化
+        const modulePageMap = {
+            'image_to_video': './frontend/reference_image_gen_video.html',
+            'text_to_video': './frontend/gen_video.html',
+            'video_comprehension': './frontend/video_comprehension.html',
+            'seedream': './frontend/seedream.html'
+        };
+
+        async function renderTabs() {
+            console.log(`[${new Date().toISOString()}] refresh modules`);
+            const nav = document.getElementById('tab-nav');
+            const contents = document.getElementById('tab-contents');
+            try {
+                const res = await fetch('/api/modules');
+                if (res.status === 304) {
+                    return;
+                }
+                const data = await res.json();
+                const modules = data.modules || {};
+                const entries = Object.values(modules).filter(m => m.enabled);
+                if (entries.length === 0) return;
+                nav.innerHTML = '';
+                contents.innerHTML = '';
+                const saved = (() => { try { return localStorage.getItem('activeTab'); } catch (_) { return null; } })();
+                entries.forEach((m, idx) => {
+                    const btn = document.createElement('button');
+                    const isActive = saved ? (saved === m.name) : (idx === 0);
+                    btn.className = 'tab-button' + (isActive ? ' active' : '');
+                    btn.textContent = m.display_name || m.name;
+                    btn.setAttribute('data-tab', m.name);
+                    btn.setAttribute('type', 'button');
+                    btn.onclick = (e) => switchTab(m.name, e);
+                    nav.appendChild(btn);
+                    const div = document.createElement('div');
+                    div.id = m.name;
+                    div.className = 'tab-content' + (isActive ? ' active' : '');
+                    const src = modulePageMap[m.name];
+                    if (src) {
+                        const iframe = document.createElement('iframe');
+                        iframe.src = src;
+                        iframe.className = 'iframe-container';
+                        iframe.setAttribute('frameborder', '0');
+                        div.appendChild(iframe);
+                    } else {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'coming-soon';
+                        placeholder.innerHTML = '<div class="feature-icon">🚧</div><h3>功能占位</h3><p>模块页面未配置</p>';
+                        div.appendChild(placeholder);
+                    }
+                    contents.appendChild(div);
+                });
+                if (saved && document.getElementById(saved)) {
+                    switchTab(saved);
+                }
+            } catch (e) {
+                console.error('加载模块信息失败', e);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('AIGC工作台已加载完成');
+            renderTabs();
         });
     </script>
 </body>

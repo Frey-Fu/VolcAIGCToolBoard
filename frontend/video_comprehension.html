@@ -347,6 +347,10 @@
 
                 <div class="error-message" id="errorMessage"></div>
                 <div class="success-message" id="successMessage"></div>
+                <div class="result-section" id="errorDisplay" style="display:none;">
+                    <div class="result-title">错误信息：</div>
+                    <div class="result-content" id="result-content"></div>
+                </div>
 
                 <div class="result-section" id="resultSection">
                     <div class="result-title">分析结果：</div>
@@ -356,6 +360,7 @@
         </div>
     </div>
 
+    <script src="./static/error_utils.js"></script>
     <script>
         let selectedVideo = null;
         let videoUrl = null;
@@ -525,13 +530,16 @@
                 body: formData
                 // 不要手动设置Content-Type，让浏览器自动设置multipart/form-data
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || '上传失败');
+            const text = await response.text();
+            let data = null;
+            try { data = JSON.parse(text); } catch (_) {}
+            if (!response.ok || (data && data.success === false)) {
+                const upstreamInfo = window.ErrorUtils.extractUpstream(data || {}, text);
+                window.ErrorUtils.renderError('result-content', '视频上传失败', `HTTP ${response.status}`, upstreamInfo);
+                document.getElementById('errorDisplay').style.display = 'block';
+                throw new Error((data && (data.error || data.message)) || `HTTP ${response.status}`);
             }
-            
-            return await response.json();
+            return data;
         }
 
         // 分析视频
@@ -548,8 +556,15 @@
                     fps: fps
                 })
             });
-            
-            return await response.json();
+            const text = await response.text();
+            let data = null;
+            try { data = JSON.parse(text); } catch (_) {}
+            if (!response.ok || (data && data.success === false)) {
+                const upstreamInfo = window.ErrorUtils.extractUpstream(data || {}, text);
+                window.ErrorUtils.renderError('result-content', '视频分析失败', `HTTP ${response.status}`, upstreamInfo);
+                document.getElementById('errorDisplay').style.display = 'block';
+            }
+            return data || { success: false, error: '响应解析失败' };
         }
 
         // 显示加载状态

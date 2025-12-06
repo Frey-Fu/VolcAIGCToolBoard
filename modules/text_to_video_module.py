@@ -119,7 +119,7 @@ class TextToVideoModule(BaseModule):
                     'message': '文生视频任务创建成功'
                 })
             else:
-                return self.send_error_response(500, f"创建任务失败: {task_result['error']}")
+                return self.build_error_response(500, f"创建任务失败: {task_result['error']}", task_result.get('upstream_error'), task_result.get('error_response_content'))
                 
         except json.JSONDecodeError:
             return self.send_error_response(400, "请求数据格式错误")
@@ -235,7 +235,7 @@ class TextToVideoModule(BaseModule):
                     'message': '图生视频任务创建成功'
                 })
             else:
-                return self.send_error_response(500, f"创建任务失败: {task_result['error']}")
+                return self.build_error_response(500, f"创建任务失败: {task_result['error']}", task_result.get('upstream_error'), task_result.get('error_response_content'))
                 
         except Exception as e:
             self._log_if_enabled('error_traceback', 'error', f"处理图生视频请求时发生错误: {str(e)}")
@@ -260,7 +260,7 @@ class TextToVideoModule(BaseModule):
             if status_result['success']:
                 return self.send_json_response(200, status_result['data'])
             else:
-                return self.send_error_response(500, f"查询任务状态失败: {status_result['error']}")
+                return self.build_error_response(500, f"查询任务状态失败: {status_result['error']}", status_result.get('upstream_error'), status_result.get('error_response_content'), { 'status': 'failed' })
                 
         except Exception as e:
             self._log_if_enabled('error_traceback', 'error', f"查询任务状态时发生错误: {str(e)}")
@@ -432,7 +432,12 @@ class TextToVideoModule(BaseModule):
                 else:
                     error_msg = response_data.get('error', {}).get('message', '未知错误')
                     self.logger.error(f"API返回错误状态码 {response.status}: {error_msg}")
-                    return {'success': False, 'error': error_msg}
+                    return {
+                        'success': False,
+                        'error': error_msg,
+                        'upstream_error': response_data.get('error'),
+                        'error_response_content': response_text
+                    }
                     
         except urllib.error.HTTPError as e:
             # 读取错误响应内容
@@ -450,7 +455,12 @@ class TextToVideoModule(BaseModule):
             self.logger.error(f"请求URL: {e.url}")
             self.logger.error(f"错误响应内容: {error_response}")
             self.logger.error(error_msg)
-            return {'success': False, 'error': error_msg}
+            upstream = None
+            try:
+                upstream = json.loads(error_response).get('error')
+            except:
+                pass
+            return {'success': False, 'error': error_msg, 'error_response_content': error_response, 'upstream_error': upstream}
         except Exception as e:
             error_msg = f"创建任务时发生错误: {str(e)}"
             self.logger.error(error_msg)
@@ -476,12 +486,33 @@ class TextToVideoModule(BaseModule):
                     return {'success': True, 'data': response_data}
                 else:
                     error_msg = response_data.get('error', {}).get('message', '未知错误')
-                    return {'success': False, 'error': error_msg}
+                    return {
+                        'success': False,
+                        'error': error_msg,
+                        'upstream_error': response_data.get('error'),
+                        'error_response_content': response_text
+                    }
                     
         except urllib.error.HTTPError as e:
+            error_response = ""
+            try:
+                if e.fp:
+                    error_response = e.fp.read().decode('utf-8')
+            except:
+                pass
             error_msg = f"HTTP错误 {e.code}: {e.reason}"
             self.logger.error(error_msg)
-            return {'success': False, 'error': error_msg}
+            upstream = None
+            try:
+                upstream = json.loads(error_response).get('error')
+            except:
+                pass
+            return {
+                'success': False,
+                'error': error_msg,
+                'upstream_error': upstream,
+                'error_response_content': error_response
+            }
         except Exception as e:
             error_msg = f"查询任务状态时发生错误: {str(e)}"
             self.logger.error(error_msg)

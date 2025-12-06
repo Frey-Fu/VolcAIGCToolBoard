@@ -439,6 +439,7 @@
         </div>
     </div>
 
+    <script src="./static/error_utils.js"></script>
     <script>
         // 生视频功能相关变量
         let currentTaskId = null;
@@ -535,9 +536,7 @@
             
             try {
                 let response;
-                
                 if (videoType === 'text_to_video') {
-                    // 文生视频
                     const apiKey = document.getElementById('video-api-key').value.trim();
                     const modelType = document.querySelector('input[name="model-type"]:checked').value;
                     const resolution = document.getElementById('video-resolution').value;
@@ -545,7 +544,6 @@
                     const duration = document.getElementById('video-duration').value;
                     const seed = document.getElementById('video-seed').value || '-1';
                     const fixedCamera = document.getElementById('fixed-camera').checked;
-                    
                     const requestData = {
                         prompt: basePrompt,
                         api_key: apiKey,
@@ -556,16 +554,12 @@
                         seed: seed,
                         fixed_camera: fixedCamera
                     };
-                    
                     response = await fetch('/text_to_video', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(requestData)
                     });
                 } else {
-                    // 图生视频
                     const apiKey = document.getElementById('video-api-key').value.trim();
                     const modelType = document.querySelector('input[name="model-type"]:checked').value;
                     const resolution = document.getElementById('video-resolution').value;
@@ -573,7 +567,6 @@
                     const duration = document.getElementById('video-duration').value;
                     const seed = document.getElementById('video-seed').value || '-1';
                     const fixedCamera = document.getElementById('fixed-camera').checked;
-                    
                     const formData = new FormData();
                     formData.append('prompt', basePrompt);
                     formData.append('api_key', apiKey);
@@ -585,34 +578,33 @@
                     formData.append('seed', seed);
                     formData.append('fixed_camera', fixedCamera);
                     formData.append('first_frame', document.getElementById('first-frame-input').files[0]);
-                    
                     if (videoType === 'image_to_video_first_last_frame') {
                         formData.append('last_frame', document.getElementById('last-frame-input').files[0]);
                     }
-                    
-                    response = await fetch('/image_to_video_advanced', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    response = await fetch('/image_to_video_advanced', { method: 'POST', body: formData });
                 }
-                
-                const result = await response.json();
-                
-                if (result.success) {
+
+                const text = await response.text();
+                let result = null;
+                try { result = JSON.parse(text); } catch (_) {}
+
+                if (response.ok && result && result.success) {
                     currentTaskId = result.task_id;
                     document.getElementById('status-detail').textContent = `任务ID: ${currentTaskId}`;
-                    
-                    // 开始轮询任务状态
                     startStatusPolling();
                 } else {
-                    throw new Error(result.message || '创建任务失败');
+                    const backendError = result && (result.error || result.message);
+                    const moduleName = result && result.module;
+                    const statusCode = response.status;
+                    const detailText = backendError ? backendError : (text || '未知错误');
+                    const composed = `HTTP ${statusCode}${moduleName ? ` | 模块: ${moduleName}` : ''} | 错误: ${detailText}`;
+                    const upstreamInfo = window.ErrorUtils.extractUpstream(result, text);
+                    window.ErrorUtils.renderError('result-content', '视频生成失败', composed, upstreamInfo);
+                    throw new Error(detailText);
                 }
-                
             } catch (error) {
                 console.error('生成视频失败:', error);
                 alert(`生成视频失败: ${error.message}`);
-                
-                // 重置状态
                 generateBtn.disabled = false;
                 generateBtn.textContent = '🎬 生成视频';
                 statusDiv.style.display = 'none';
@@ -687,11 +679,60 @@
                 }
             } else if (result.status === 'failed') {
                 statusText.textContent = '视频生成失败';
-                statusDetail.textContent = `任务ID: ${currentTaskId} | 错误: ${result.error || '未知错误'}`;
-                
+                const baseErr = result.error || '未知错误';
+                const upstream = result.upstream_error && typeof result.upstream_error === 'object' ? result.upstream_error : null;
+                const code = upstream && upstream.code ? upstream.code : '';
+                const type = upstream && upstream.type ? upstream.type : '';
+                const msg = upstream && upstream.message ? upstream.message : '';
+                const rid = upstream && (upstream.request_id || upstream.requestId) ? (upstream.request_id || upstream.requestId) : '';
+                statusDetail.textContent = `任务ID: ${currentTaskId} | 错误: ${baseErr}`;
                 resultDiv.style.display = 'block';
-                resultContent.innerHTML = `<p class="error-message">❌ ${result.error || '生成失败，请重试'}</p>`;
+                const raw = result.error_response_content || '';
+                const structured = upstream ? (
+                    `<div class="status-detail">错误码: ${code} ${type ? `| 类型: ${type}` : ''}</div>` +
+                    `<div class="status-detail">错误原因: ${msg}</div>` +
+                    `${rid ? `<div class=\"status-detail\">Request id: ${rid}</div>` : ''}`
+                ) : '';
+                const rawBlock = raw ? `<div style="margin-top:8px;">错误响应内容：</div><pre style="white-space:pre-wrap; word-break:break-word; background:#fff; border:1px solid #eee; padding:10px; border-radius:6px;">${raw}</pre>` : '';
+                resultContent.innerHTML = `<div class="status-box" style="border-left-color:#dc3545;">` +
+                    `<div class="error-message">❌ ${baseErr}</div>` +
+                    `${structured}` +
+                    `${rawBlock}` +
+                `</div>`;
             }
+        }
+
+        function showDetailedError(message, raw) {
+            const resultDiv = document.getElementById('video-result');
+            const resultContent = document.getElementById('result-content');
+            resultDiv.style.display = 'block';
+            let parsed = null;
+            try { parsed = raw ? JSON.parse(raw) : null; } catch (_) {}
+            let structured = '';
+            if (parsed) {
+                const upstream = parsed.upstream_error && typeof parsed.upstream_error === 'object' ? parsed.upstream_error : null;
+                const errorObj = upstream || (typeof parsed.error === 'object' ? parsed.error : null);
+                if (errorObj) {
+                    const code = errorObj.code || '';
+                    const type = errorObj.type || '';
+                    const rid = (errorObj.request_id || parsed.request_id || '').toString();
+                    const msg = errorObj.message || '';
+                    structured = `<div style="margin:10px 0;">` +
+                        `<div class="status-detail">错误码: ${code} ${type ? `| 类型: ${type}` : ''}</div>` +
+                        `<div class="status-detail">错误原因: ${msg}</div>` +
+                        `${rid ? `<div class=\"status-detail\">Request id: ${rid}</div>` : ''}` +
+                    `</div>`;
+                }
+            }
+            const upstreamRaw = parsed && parsed.error_response_content ? parsed.error_response_content : '';
+            const rawText = upstreamRaw || raw || '';
+            const rawBlock = rawText ? `<div style="margin-top:8px;">错误响应内容：</div><pre style="white-space:pre-wrap; word-break:break-word; background:#fff; border:1px solid #eee; padding:10px; border-radius:6px;">${rawText}</pre>` : '';
+            resultContent.innerHTML = `<div class="status-box" style="border-left-color:#dc3545;">` +
+                `<div class="status-text" style="color:#dc3545;">视频生成失败</div>` +
+                `<div class="status-detail">${message}</div>` +
+                `${structured}` +
+                `${rawBlock}` +
+            `</div>`;
         }
 
         // 页面加载完成后的初始化

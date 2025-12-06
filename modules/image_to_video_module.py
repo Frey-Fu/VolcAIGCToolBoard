@@ -108,8 +108,9 @@ class ImageToVideoModule(BaseModule):
                 return self.send_json_response(200, result)
                 
         except urllib.error.HTTPError as e:
-            error_msg = e.read().decode('utf-8') if e.fp else str(e)
-            return self.send_error_response(e.code, f"API请求失败: {error_msg}")
+            raw = e.read().decode('utf-8') if e.fp else str(e)
+            upstream = self.parse_upstream_error(raw)
+            return self.build_error_response(e.code, "API请求失败", upstream, raw)
         except Exception as e:
             return self.send_error_response(500, f"查询任务状态失败: {str(e)}")
     
@@ -181,8 +182,9 @@ class ImageToVideoModule(BaseModule):
                 })
                 
         except urllib.error.HTTPError as e:
-            error_msg = e.read().decode('utf-8') if e.fp else str(e)
-            return self.send_error_response(e.code, f"API请求失败: {error_msg}")
+            raw = e.read().decode('utf-8') if e.fp else str(e)
+            upstream = self.parse_upstream_error(raw)
+            return self.build_error_response(e.code, "API请求失败", upstream, raw)
         except Exception as e:
             if self._should_log('error_traceback'):
                 self.logger.error(f"生成视频时发生错误: {traceback.format_exc()}")
@@ -310,11 +312,8 @@ class ImageToVideoModule(BaseModule):
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode('utf-8')
                 self.logger.error(f"API请求失败: {e.code} - {error_body}")
-                try:
-                    error_data = json.loads(error_body)
-                    return self.send_error_response(e.code, f"API错误: {error_data.get('message', '未知错误')}")
-                except:
-                    return self.send_error_response(e.code, f"API错误: {error_body}")
+                upstream = self.parse_upstream_error(error_body)
+                return self.build_error_response(e.code, "API错误", upstream, error_body)
             except Exception as e:
                 self.logger.error(f"发送API请求时发生错误: {e}")
                 return self.send_error_response(500, f"请求失败: {str(e)}")

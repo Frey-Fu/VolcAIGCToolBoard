@@ -132,7 +132,7 @@ class VideoComprehensionModule(BaseModule):
                     'result': result['content']
                 })
             else:
-                return self.send_error_response(500, result['error'])
+                return self.build_error_response(500, result.get('error', '视频理解失败'), result.get('upstream_error'), result.get('error_response_content'))
                 
         except json.JSONDecodeError:
             return self.send_error_response(400, "JSON格式错误")
@@ -196,7 +196,7 @@ class VideoComprehensionModule(BaseModule):
                         "content": [
                             {
                                 "video_url": {
-                                    "url": video_url,
+                                    "url": "https://fuwei-test.tos-cn-beijing.volces.com/20251206_143318_38529b83_02176284157923200000000000000000000ffffac1833802ac173.mp4",
                                     "fps": fps
                                 },
                                 "type": "video_url"
@@ -259,27 +259,27 @@ class VideoComprehensionModule(BaseModule):
             error_msg = f"API请求失败: HTTP {e.code}"
             try:
                 error_body = e.read().decode('utf-8')
-                # 打印错误响应体日志
                 if self._should_log('error_traceback'):
                     self.logger.info(f"=== API错误响应 ===")
                     self.logger.info(f"错误状态码: {e.code}")
                     self.logger.info(f"错误响应体: {error_body}")
-                
                 error_response = json.loads(error_body)
-                if 'error' in error_response:
-                    error_msg += f" - {error_response['error'].get('message', '未知错误')}"
-                else:
-                    # 如果没有error字段，直接添加整个响应内容
-                    error_msg += f" - {error_body}"
+                upstream = error_response.get('error') if isinstance(error_response.get('error'), dict) else None
+                self._log_if_enabled('error_traceback', 'error', error_msg)
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'upstream_error': upstream,
+                    'error_response_content': error_body
+                }
             except Exception as parse_error:
                 self._log_if_enabled('error_traceback', 'error', f"解析错误响应失败: {parse_error}")
-                pass
-            
-            self._log_if_enabled('error_traceback', 'error', error_msg)
-            return {
-                'success': False,
-                'error': error_msg
-            }
+                self._log_if_enabled('error_traceback', 'error', error_msg)
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'error_response_content': None
+                }
             
         except urllib.error.URLError as e:
             error_msg = f"网络连接失败: {str(e)}"

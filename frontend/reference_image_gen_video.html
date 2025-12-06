@@ -519,6 +519,10 @@
 
             <div class="error-message" id="errorMessage"></div>
             <div class="status-message" id="statusMessage"></div>
+            <div class="result-section" id="errorDisplay" style="display: none;">
+                <h2>错误信息</h2>
+                <div id="result-content" class="result-content"></div>
+            </div>
         </div>
 
         <div class="result-section" id="resultSection">
@@ -530,6 +534,7 @@
         </div>
     </div>
 
+    <script src="./static/error_utils.js"></script>
     <script>
         class VideoGenerator {
             constructor() {
@@ -718,13 +723,16 @@
                     method: 'POST',
                     body: formData
                 });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                const text = await response.text();
+                let data = null;
+                try { data = JSON.parse(text); } catch (_) {}
+                if (!response.ok || (data && data.success === false)) {
+                    const upstreamInfo = window.ErrorUtils.extractUpstream(data || {}, text);
+                    window.ErrorUtils.renderError('result-content', '创建任务失败', `HTTP ${response.status}`, upstreamInfo);
+                    document.getElementById('errorDisplay').style.display = 'block';
+                    throw new Error((data && (data.error || data.message)) || `HTTP ${response.status}`);
                 }
-
-                const data = await response.json();
-                return data.id;
+                return (data && (data.id || data.task_id)) || '';
             }
 
 
@@ -774,16 +782,22 @@
                             this.showResult(this.videoUrls);
                             this.stopPolling();
                         } else if (hasFailed) {
-                            this.showError('任务执行失败');
+                            const upstreamInfo = window.ErrorUtils.extractUpstream({}, '');
+                            window.ErrorUtils.renderError('result-content', '任务执行失败', '❌ 任务执行失败', upstreamInfo);
+                            document.getElementById('errorDisplay').style.display = 'block';
                             this.stopPolling();
                         } else if (this.pollCount >= this.maxPolls) {
-                            this.showError('任务超时，请稍后重试');
+                            const upstreamInfo = window.ErrorUtils.extractUpstream({}, '');
+                            window.ErrorUtils.renderError('result-content', '任务超时', '❌ 任务超时，请稍后重试', upstreamInfo);
+                            document.getElementById('errorDisplay').style.display = 'block';
                             this.stopPolling();
                         } else {
                             this.showStatus(`正在处理中... (${this.pollCount}/${this.maxPolls})`);
                         }
                     } catch (error) {
-                        this.showError('查询任务状态失败: ' + error.message);
+                        const upstreamInfo = window.ErrorUtils.extractUpstream({}, '');
+                        window.ErrorUtils.renderError('result-content', '查询任务状态失败', '❌ ' + error.message, upstreamInfo);
+                        document.getElementById('errorDisplay').style.display = 'block';
                         this.stopPolling();
                     }
                 }, 5000);

@@ -8,6 +8,12 @@ from abc import ABC, abstractmethod
 import json
 from typing import Dict, Any, Optional
 import logging
+try:
+    from fastapi import APIRouter, Request, Response
+except Exception:
+    APIRouter = None
+    Request = None
+    Response = None
 
 class BaseModule(ABC):
     """
@@ -26,6 +32,11 @@ class BaseModule(ABC):
         self.name = name
         self.config = config or {}
         self.logger = logging.getLogger(f"module.{name}")
+        self.state = "unloaded"
+        modules_cfg = (self.config.get("modules", {}) if isinstance(self.config, dict) else {})
+        module_cfg = modules_cfg.get(self.name, {})
+        self.display_name = module_cfg.get("display_name", self.name)
+        self.enabled = bool(module_cfg.get("enabled", True))
         
         # 设置日志配置
         self._setup_logging()
@@ -81,10 +92,35 @@ class BaseModule(ABC):
             
             if self._should_log('initialization_log'):
                 self.logger.info(f"模块 {self.name} 初始化成功")
+            self.state = "initialized"
             return True
         except Exception as e:
             if self._should_log('error_log'):
                 self.logger.error(f"模块 {self.name} 初始化失败: {e}")
+            return False
+
+    def start(self) -> bool:
+        try:
+            if not self.enabled:
+                return False
+            self.state = "started"
+            return True
+        except Exception:
+            self.state = "stopped"
+            return False
+
+    def stop(self) -> bool:
+        try:
+            self.state = "stopped"
+            return True
+        except Exception:
+            return False
+
+    def unload(self) -> bool:
+        try:
+            self.state = "unloaded"
+            return True
+        except Exception:
             return False
     
     def get_module_info(self) -> Dict[str, Any]:
@@ -96,6 +132,9 @@ class BaseModule(ABC):
         """
         return {
             "name": self.name,
+            "display_name": self.display_name,
+            "enabled": self.enabled,
+            "state": self.state,
             "config": self.config,
             "routes": list(self.get_routes().keys())
         }
@@ -138,6 +177,32 @@ class BaseModule(ABC):
             "error": error_message,
             "module": self.name
         })
+
+    def build_error_response(self, status_code: int, base_error: str, upstream_error: Any = None, raw_error_text: Optional[str] = None, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        payload = {
+            "success": False,
+            "error": base_error,
+            "module": self.name
+        }
+        if upstream_error is not None:
+            payload["upstream_error"] = upstream_error
+        if raw_error_text:
+            payload["error_response_content"] = raw_error_text
+        if extra:
+            payload.update(extra)
+        return self.send_json_response(status_code, payload)
+
+    def parse_upstream_error(self, raw_text: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not raw_text:
+            return None
+        try:
+            data = json.loads(raw_text)
+            err = data.get("error")
+            if isinstance(err, dict):
+                return err
+        except Exception:
+            return None
+        return None
     
     def _setup_logging(self):
         """设置日志配置"""
@@ -152,10 +217,34 @@ class BaseModule(ABC):
         self.log_switches = module_logging_config
     
     def _should_log(self, log_type: str) -> bool:
-        """检查是否应该记录特定类型的日志"""
-        return self.log_switches.get(f'enable_{log_type}', True)
+        return self.log_switches.get(f'enable_{log_type}', self.log_switches.get(log_type, True))
     
     def _log_if_enabled(self, log_type: str, level: str, message: str):
-        """如果启用了特定类型的日志，则记录日志"""
         if self._should_log(log_type):
             getattr(self.logger, level.lower())(message)
+
+    def get_router(self):
+        if APIRouter is None:
+            return None
+        router = APIRouter()
+        routes = list(self.get_routes().keys())
+        async def handler(request: Request, subpath: Optional[str] = None):
+            method = request.method
+            headers = dict(request.headers)
+            body = await request.body()
+            path = request.url.path if subpath is None else request.url.path
+            resp = self.handle_request(path, method, headers, body)
+            status_code = resp.get("status_code", 200)
+            headers_out = resp.get("headers", {})
+            body_out = resp.get("body", "")
+            if isinstance(body_out, str):
+                return Response(content=body_out, status_code=status_code, headers=headers_out)
+            elif isinstance(body_out, bytes):
+                return Response(content=body_out, status_code=status_code, headers=headers_out)
+            else:
+                return Response(content=json.dumps(body_out, ensure_ascii=False), status_code=status_code, headers=headers_out)
+        for route in routes:
+            router.add_api_route(route, handler, methods=["GET", "POST"])
+            if route.endswith('/'):
+                router.add_api_route(route + "{subpath:path}", handler, methods=["GET", "POST"])
+        return router

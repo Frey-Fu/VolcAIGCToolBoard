@@ -316,6 +316,10 @@
         </div>
 
         <div id="message"></div>
+        <div class="result-section" id="errorDisplay" style="display:none;">
+            <h2>错误信息</h2>
+            <div id="result-content" class="result-content"></div>
+        </div>
 
         <div class="result-section" id="resultSection" style="display: none;">
             <h2>🎉 生成结果</h2>
@@ -323,6 +327,7 @@
         </div>
     </div>
 
+    <script src="./static/error_utils.js"></script>
     <script>
         let selectedFiles = [];
 
@@ -438,13 +443,16 @@
                     displayResults(result.data);
                 } else {
                     const errorMsg = result.message || result.error || '未知错误';
-                    showMessage(`生成失败: ${errorMsg}`, 'error');
-                    console.error('API错误:', result);
+                    const upstreamInfo = window.ErrorUtils.extractUpstream(result, responseText);
+                    window.ErrorUtils.renderError('result-content', '生成失败', `❌ ${errorMsg}`, upstreamInfo);
+                    document.getElementById('errorDisplay').style.display = 'block';
                 }
                 
             } catch (error) {
                 console.error('请求失败:', error);
-                showMessage(`请求失败: ${error.message}`, 'error');
+                const upstreamInfo = window.ErrorUtils.extractUpstream({}, '');
+                window.ErrorUtils.renderError('result-content', '请求失败', `❌ ${error.message}`, upstreamInfo);
+                document.getElementById('errorDisplay').style.display = 'block';
             } finally {
                 setLoading(false);
             }
