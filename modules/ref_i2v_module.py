@@ -32,6 +32,7 @@ class RefI2VModule(BaseModule):
 
     def handle_request(self, path: str, method: str, headers: Dict[str, str], body: bytes = None) -> Dict[str, Any]:
         try:
+            self._log_if_enabled('request_log', 'info', f"path={path} method={method} content_type={headers.get('Content-Type') or headers.get('content-type')} body_len={len(body) if body else 0}")
             if path.startswith('/task_status/'):
                 return self.handle_task_status(path, method, headers, body)
             elif path == '/generate_video' and method == 'POST':
@@ -43,7 +44,8 @@ class RefI2VModule(BaseModule):
             else:
                 return self.send_error_response(404, "路径未找到")
         except Exception as e:
-            self._log_if_enabled('error_traceback', 'error', f"处理请求时发生错误: {e}")
+            if self._should_log('error_traceback'):
+                self.logger.error(traceback.format_exc())
             return self.send_error_response(500, f"服务器内部错误: {str(e)}")
 
     def handle_task_status(self, path: str, method: str, headers: Dict[str, str], body: bytes = None) -> Dict[str, Any]:
@@ -66,6 +68,7 @@ class RefI2VModule(BaseModule):
         except urllib.error.HTTPError as e:
             raw = e.read().decode('utf-8') if e.fp else str(e)
             upstream = self.parse_upstream_error(raw)
+            self._log_if_enabled('error_traceback', 'error', f"status_http_error code={e.code} raw={raw}")
             return self.build_error_response(e.code, "API请求失败", upstream, raw)
         except Exception as e:
             return self.send_error_response(500, f"查询任务状态失败: {str(e)}")
@@ -75,6 +78,7 @@ class RefI2VModule(BaseModule):
             if not body:
                 return self.send_error_response(400, "请求体为空")
             content_type = headers.get('Content-Type', '') or headers.get('content-type', '')
+            self._log_if_enabled('request_log', 'info', f"generate content_type={content_type}")
             form_data = self.parse_multipart_form_data(content_type, body)
             if not form_data:
                 return self.send_error_response(400, "无法解析表单数据")
@@ -94,6 +98,7 @@ class RefI2VModule(BaseModule):
                         if upload_result['success']:
                             image_urls.append(upload_result['url'])
                         else:
+                            self._log_if_enabled('error_traceback', 'error', f"upload_failed i={i} error={upload_result['error']}")
                             return self.send_error_response(500, f"图片上传失败: {upload_result['error']}")
             if not image_urls:
                 return self.send_error_response(400, "至少需要上传一张参考图片")
@@ -108,6 +113,7 @@ class RefI2VModule(BaseModule):
         except urllib.error.HTTPError as e:
             raw = e.read().decode('utf-8') if e.fp else str(e)
             upstream = self.parse_upstream_error(raw)
+            self._log_if_enabled('error_traceback', 'error', f"generate_http_error code={e.code} raw={raw}")
             return self.build_error_response(e.code, "API请求失败", upstream, raw)
         except Exception as e:
             if self._should_log('error_traceback'):
@@ -139,6 +145,7 @@ class RefI2VModule(BaseModule):
             if 'multipart/form-data' not in content_type:
                 return self.send_error_response(400, "需要multipart/form-data格式")
             form_data = self.parse_multipart_form_data(content_type, body)
+            self._log_if_enabled('request_log', 'info', f"upload_create fields={list(form_data.keys())}")
             api_key = self.config_api_key if self.config_api_key else (form_data.get('api_key', [''])[0] if form_data.get('api_key') else '')
             prompt = form_data.get('prompt', [''])[0] if form_data.get('prompt') else ''
             if not api_key or not prompt:
@@ -153,6 +160,7 @@ class RefI2VModule(BaseModule):
                                 return self.send_error_response(400, f"文件大小不能超过{self.max_file_size // (1024*1024)}MB")
                             upload_result = self.upload_to_tos(file_content, file_info.get('filename', 'image.jpg'))
                             if not upload_result['success']:
+                                self._log_if_enabled('error_traceback', 'error', f"upload_failed field={field_name} error={upload_result['error']}")
                                 return self.send_error_response(500, f"上传图片失败: {upload_result['error']}")
                             url = upload_result['url']
                             self._log_if_enabled('upload_log', 'info', f"图片上传成功: {url}")
@@ -181,7 +189,8 @@ class RefI2VModule(BaseModule):
                 self.logger.error(f"发送API请求时发生错误: {e}")
                 return self.send_error_response(500, f"请求失败: {str(e)}")
         except Exception as e:
-            self.logger.error(f"处理上传和创建任务时发生错误: {e}")
+            if self._should_log('error_traceback'):
+                self.logger.error(traceback.format_exc())
             return self.send_error_response(500, f"服务器内部错误: {str(e)}")
 
     def upload_to_tos(self, file_content: bytes, filename: str) -> Dict[str, Any]:

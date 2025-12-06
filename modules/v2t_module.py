@@ -4,6 +4,7 @@ import urllib.request
 import urllib.error
 import re
 from typing import Dict, Any
+import traceback
 
 from .base_module import BaseModule
 from .tos_utils import TOSUploader
@@ -28,6 +29,7 @@ class V2TModule(BaseModule):
 
     def handle_request(self, path: str, method: str, headers: Dict[str, str], body: bytes = None) -> Dict[str, Any]:
         try:
+            self._log_if_enabled('request_log', 'info', f"path={path} method={method} content_type={headers.get('Content-Type') or headers.get('content-type')} body_len={len(body) if body else 0}")
             if path == '/video_comprehension_gen_text' and method == 'POST':
                 return self.handle_video_comprehension_gen_text(path, method, headers, body)
             elif path == '/upload_video' and method == 'POST':
@@ -35,6 +37,8 @@ class V2TModule(BaseModule):
             else:
                 return self.send_error_response(404, "路径未找到")
         except Exception as e:
+            if self._should_log('error_traceback'):
+                self.logger.error(traceback.format_exc())
             return self.send_error_response(500, f"上传视频失败: {str(e)}")
 
     def upload_to_tos(self, file_content: bytes, filename: str) -> Dict[str, Any]:
@@ -43,6 +47,7 @@ class V2TModule(BaseModule):
     def handle_video_comprehension_gen_text(self, path: str, method: str, headers: Dict[str, str], body: bytes = None) -> Dict[str, Any]:
         try:
             content_type = headers.get('content-type', '')
+            self._log_if_enabled('request_log', 'info', f"gen_text content_type={content_type} body_len={len(body) if body else 0}")
             try:
                 if body:
                     data = json.loads(body.decode('utf-8'))
@@ -72,15 +77,19 @@ class V2TModule(BaseModule):
             if result['success']:
                 return self.send_json_response(200, {'success': True, 'message': '视频理解完成', 'result': result['content']})
             else:
+                self._log_if_enabled('error_traceback', 'error', f"gen_text_failed error={result.get('error')} upstream={result.get('upstream_error')} raw={result.get('error_response_content')}")
                 return self.build_error_response(500, result.get('error', '视频理解失败'), result.get('upstream_error'), result.get('error_response_content'))
         except json.JSONDecodeError:
             return self.send_error_response(400, "JSON格式错误")
         except Exception as e:
+            if self._should_log('error_traceback'):
+                self.logger.error(traceback.format_exc())
             return self.send_error_response(500, f"处理请求失败: {str(e)}")
 
     def handle_upload_video(self, path: str, method: str, headers: Dict[str, str], body: bytes = None) -> Dict[str, Any]:
         try:
             content_type = headers.get('content-type', '')
+            self._log_if_enabled('request_log', 'info', f"upload_video content_type={content_type} body_len={len(body) if body else 0}")
             form_data = self.parse_multipart_form_data(content_type, body)
             if 'video' not in form_data:
                 return self.send_error_response(400, "未找到视频文件")
@@ -97,8 +106,11 @@ class V2TModule(BaseModule):
             if upload_result['success']:
                 return self.send_json_response(200, {"success": True, "url": upload_result['url'], "message": "视频上传成功"})
             else:
+                self._log_if_enabled('error_traceback', 'error', f"upload_failed error={upload_result['error']}")
                 return self.send_error_response(500, f"视频上传失败: {upload_result['error']}")
         except Exception as e:
+            if self._should_log('error_traceback'):
+                self.logger.error(traceback.format_exc())
             return self.send_error_response(500, f"上传失败: {str(e)}")
 
     def call_video_comprehension_api(self, api_key: str, video_url: str, prompt: str, fps: float = 1.0) -> Dict[str, Any]:
@@ -124,6 +136,7 @@ class V2TModule(BaseModule):
                     content = response_data['choices'][0]['message']['content']
                     return {'success': True, 'content': content}
                 else:
+                    self._log_if_enabled('error_traceback', 'error', f"api_no_choices raw={response_body}")
                     return {'success': False, 'error': '未获取到有效响应'}
         except urllib.error.HTTPError as e:
             error_msg = f"API请求失败: HTTP {e.code}"
@@ -131,14 +144,19 @@ class V2TModule(BaseModule):
                 error_body = e.read().decode('utf-8')
                 error_response = json.loads(error_body)
                 upstream = error_response.get('error') if isinstance(error_response.get('error'), dict) else None
+                self._log_if_enabled('error_traceback', 'error', f"api_http_error code={e.code} raw={error_body}")
                 return {'success': False, 'error': error_msg, 'upstream_error': upstream, 'error_response_content': error_body}
             except Exception:
+                self._log_if_enabled('error_traceback', 'error', f"api_http_error_parse_failed code={e.code}")
                 return {'success': False, 'error': error_msg, 'error_response_content': None}
         except urllib.error.URLError as e:
             error_msg = f"网络连接失败: {str(e)}"
+            self._log_if_enabled('error_traceback', 'error', error_msg)
             return {'success': False, 'error': error_msg}
         except Exception as e:
             error_msg = f"调用API时发生错误: {str(e)}"
+            if self._should_log('error_traceback'):
+                self.logger.error(traceback.format_exc())
             return {'success': False, 'error': error_msg}
 
     def parse_multipart_form_data(self, content_type: str, body: bytes) -> Dict[str, list]:

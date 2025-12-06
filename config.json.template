@@ -24,7 +24,8 @@
   },
   "tos": {
     "bucket_name": "",
-    "region": "cn-beijing"
+    "region": "cn-beijing",
+    "endpoint": "tos-cn-beijing.volces.com"
   },
   "limits": { "max_file_size_mb": 10, "max_images": 4 },
   "logging": {
