@@ -162,6 +162,10 @@ def get_index():
         raise HTTPException(status_code=404, detail="页面不存在")
     return FileResponse(index_path, headers={"Cache-Control": "no-store, must-revalidate"})
 
+@app.get("/", include_in_schema=False)
+def get_root():
+    return get_index()
+
 frontend_dir = os.path.join(os.path.dirname(__file__), 'frontend')
 if os.path.isdir(frontend_dir):
     app.mount("/frontend", StaticFiles(directory=frontend_dir), name="frontend")
