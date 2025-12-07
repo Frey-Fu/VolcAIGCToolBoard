@@ -6,8 +6,17 @@ TOS工具类使用示例
 这个文件展示了如何使用tos_utils.TOSUploader类进行文件上传
 """
 
-from tos_utils import TOSUploader
+import os
+import sys
 
+# 将项目根目录加入 Python 路径，便于从 modules 导入（tests/tosutil → tests → 项目根）
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from modules.tos_utils import TOSUploader
+
+file1_name = '人物 1.jpeg'
+file2_name = '人物 2.jpeg'
+TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def example_basic_upload():
     """基本上传示例"""
@@ -19,13 +28,13 @@ def example_basic_upload():
     )
     
     # 准备要上传的文件内容
-    with open('example.jpg', 'rb') as f:
+    with open(os.path.join(TEST_DIR, file1_name), 'rb') as f:
         file_content = f.read()
     
     # 上传文件
     result = uploader.upload_file(
         file_content=file_content,
-        filename='example.jpg',
+        filename=file1_name,
         set_public_read=True
     )
     
@@ -41,11 +50,11 @@ def example_multiple_uploads():
     """批量上传示例"""
     uploader = TOSUploader('fuwei-test', 'cn-beijing')
     
-    files = ['image1.jpg', 'image2.png', 'document.pdf']
+    files = [file1_name, file2_name]
     
     for filename in files:
         try:
-            with open(filename, 'rb') as f:
+            with open(os.path.join(TEST_DIR, filename), 'rb') as f:
                 file_content = f.read()
             
             result = uploader.upload_file(file_content, filename)
@@ -63,10 +72,10 @@ def example_multiple_uploads():
 
 def example_acl_management():
     """ACL权限管理示例"""
-    uploader = TOSUploader('fuwei-test')
+    uploader = TOSUploader('fuwei-test', 'cn-beijing')
     
     # 上传文件但不设置公开读取
-    with open('private_file.txt', 'rb') as f:
+    with open(os.path.join(TEST_DIR, 'private_file.txt'), 'rb') as f:
         file_content = f.read()
     
     result = uploader.upload_file(
@@ -88,36 +97,13 @@ def example_acl_management():
             print(f"ACL设置失败: {acl_result['error']}")
 
 
-def example_cache_management():
-    """缓存管理示例"""
-    uploader = TOSUploader('fuwei-test', enable_cache=True)
-    
-    # 上传同一个文件两次
-    file_content = b"Hello, World!"
-    
-    # 第一次上传
-    result1 = uploader.upload_file(file_content, 'test1.txt')
-    print(f"第一次上传: cached={result1.get('cached', False)}")
-    
-    # 第二次上传相同内容
-    result2 = uploader.upload_file(file_content, 'test2.txt')
-    print(f"第二次上传: cached={result2.get('cached', False)}")
-    
-    print(f"缓存大小: {uploader.get_cache_size()}")
-    
-    # 清空缓存
-    uploader.clear_cache()
-    print(f"清空后缓存大小: {uploader.get_cache_size()}")
-
-
 if __name__ == '__main__':
     print("TOS工具类使用示例")
     print("=" * 50)
     
     # 运行示例（注意：需要实际的文件才能运行）
-    # example_basic_upload()
-    # example_multiple_uploads()
-    # example_acl_management()
-    # example_cache_management()
+    example_basic_upload()
+    example_multiple_uploads()
+    example_acl_management()
     
     print("示例代码已准备就绪，请根据实际情况修改文件路径后运行")

@@ -1,16 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import requests
+import os
 import json
+import requests
+
+def load_test_config():
+    tests_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg_path = os.path.join(tests_dir, 'test_config.json')
+    try:
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 def test_video_comprehension():
     """测试视频理解接口"""
     
     # 测试数据
+    cfg = load_test_config()
+    api_key = (cfg.get('v2t_module', {}) or {}).get('api_key', '')
     test_data = {
-        "api_key": "test_key",
-        "video_url": "https://example.com/test.mp4",
+        "api_key": api_key,
+        "video_url": "https://fuwei-test.tos-cn-beijing.volces.com/yiwise/%E5%BE%85%E5%88%86%E6%9E%90%E8%A7%86%E9%A2%91.mp4",
         "prompt": "请描述这个视频的内容"
     }
     

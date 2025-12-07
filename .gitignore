@@ -3,3 +3,6 @@ credentials/
 .DS_Store
 design/
 config.json
+tests/test_config.json
+tests/logs
+tosutil

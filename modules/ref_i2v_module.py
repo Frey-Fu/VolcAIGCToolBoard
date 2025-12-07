@@ -143,12 +143,14 @@ class RefI2VModule(BaseModule):
         try:
             content_type = headers.get('Content-Type', '') or headers.get('content-type', '')
             if 'multipart/form-data' not in content_type:
+                self._log_if_enabled('error_traceback', 'error', f"bad_content_type={content_type}")
                 return self.send_error_response(400, "需要multipart/form-data格式")
             form_data = self.parse_multipart_form_data(content_type, body)
             self._log_if_enabled('request_log', 'info', f"upload_create fields={list(form_data.keys())}")
-            api_key = self.config_api_key if self.config_api_key else (form_data.get('api_key', [''])[0] if form_data.get('api_key') else '')
+            api_key = (self.config_api_key or self.fallback_api_key or (form_data.get('api_key', [''])[0] if form_data.get('api_key') else ''))
             prompt = form_data.get('prompt', [''])[0] if form_data.get('prompt') else ''
             if not api_key or not prompt:
+                self._log_if_enabled('error_traceback', 'error', f"missing_params api_key={'set' if api_key else 'empty'} prompt_len={len(prompt)}")
                 return self.send_error_response(400, "API Key和提示词不能为空")
             image_urls = []
             for field_name, file_list in form_data.items():
@@ -156,7 +158,9 @@ class RefI2VModule(BaseModule):
                     for file_info in file_list:
                         if isinstance(file_info, dict) and 'content' in file_info:
                             file_content = file_info['content']
+                            self._log_if_enabled('request_log', 'info', f"file_field={field_name} size={len(file_content)} name={file_info.get('filename')}")
                             if len(file_content) > self.max_file_size:
+                                self._log_if_enabled('error_traceback', 'error', f"file_too_large field={field_name} size={len(file_content)} limit={self.max_file_size}")
                                 return self.send_error_response(400, f"文件大小不能超过{self.max_file_size // (1024*1024)}MB")
                             upload_result = self.upload_to_tos(file_content, file_info.get('filename', 'image.jpg'))
                             if not upload_result['success']:
@@ -166,8 +170,10 @@ class RefI2VModule(BaseModule):
                             self._log_if_enabled('upload_log', 'info', f"图片上传成功: {url}")
                             image_urls.append(url)
             if len(image_urls) == 0:
+                self._log_if_enabled('error_traceback', 'error', "no_reference_images")
                 return self.send_error_response(400, "至少需要一张参考图")
             if len(image_urls) > self.max_images:
+                self._log_if_enabled('error_traceback', 'error', f"too_many_images count={len(image_urls)} limit={self.max_images}")
                 return self.send_error_response(400, f"最多支持{self.max_images}张参考图")
             request_data = {"model": "doubao-seedance-1-0-lite-i2v-250428", "content": [{"type": "text", "text": prompt}]}
             for url in image_urls:

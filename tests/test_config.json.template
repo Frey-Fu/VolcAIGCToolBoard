@@ -1,0 +1,37 @@
+{
+  "server": { "port": 8000, "host": "0.0.0.0" },
+  "modules": {
+    "ref_i2v_module": { "enabled": true, "display_name": "参考图生视频" },
+    "i2v_and_t2v_module": { "enabled": true, "display_name": "文/图生视频" },
+    "v2t_module": { "enabled": true, "display_name": "视频理解" },
+    "seedream": { "enabled": true, "display_name": "SeedDream" }
+  },
+  "ref_i2v_module": {
+    "endpoint": "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
+    "timeout": 30,
+    "api_key": ""
+  },
+  "i2v_and_t2v_module": {
+    "endpoint": "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
+    "ark_api_key": "",
+    "timeout": 30
+  },
+  "v2t_module": {
+    "endpoint": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+    "api_key": "",
+    "timeout": 60,
+    "model": "doubao-seed-1-6-vision-250815"
+  },
+  "tos": {
+    "bucket_name": "",
+    "region": "cn-beijing",
+    "endpoint": "tos-cn-beijing.volces.com"
+  },
+  "limits": { "max_file_size_mb": 10, "max_images": 4 },
+  "logging": {
+    "ref_i2v_module": { "level": "INFO", "api_request_log": true, "api_response_log": true, "error_traceback": true },
+    "i2v_and_t2v_module": { "level": "INFO", "api_request_log": true, "api_response_log": true, "error_traceback": true },
+    "v2t_module": { "level": "INFO", "api_request_log": true, "api_response_log": true, "error_traceback": true },
+    "base_module": { "level": "INFO", "initialization_log": true, "error_traceback": true }
+  }
+}
