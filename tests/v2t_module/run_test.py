@@ -30,11 +30,13 @@ def test_video_comprehension():
     print(f"请求数据: {test_data}")
     
     try:
+        timeout_cfg = (cfg.get('v2t_module', {}) or {}).get('timeout', 60)
+        timeout = max(10, int(timeout_cfg) + 10)
         response = requests.post(
             "http://localhost:8000/video_comprehension_gen_text",
             headers={"Content-Type": "application/json"},
             json=test_data,
-            timeout=10
+            timeout=timeout
         )
         
         print(f"响应状态码: {response.status_code}")

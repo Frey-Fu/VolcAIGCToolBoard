@@ -53,6 +53,8 @@ class V2TModule(BaseModule):
                     data = json.loads(body.decode('utf-8'))
                     api_key = data.get('api_key', '').strip()
                     video_url = data.get('video_url', '').strip()
+                    if video_url.startswith('`') and video_url.endswith('`'):
+                        video_url = video_url.strip('`')
                     prompt = data.get('prompt', '').strip()
                     fps = data.get('fps', 1.0)
                 else:
@@ -62,6 +64,8 @@ class V2TModule(BaseModule):
                     form_data = self.parse_multipart_form_data(content_type, body)
                     api_key = form_data.get('api_key', [''])[0].strip() if 'api_key' in form_data else ''
                     video_url = form_data.get('video_url', [''])[0].strip() if 'video_url' in form_data else ''
+                    if video_url.startswith('`') and video_url.endswith('`'):
+                        video_url = video_url.strip('`')
                     prompt = form_data.get('prompt', [''])[0].strip() if 'prompt' in form_data else ''
                     fps = float(form_data.get('fps', ['1.0'])[0]) if 'fps' in form_data else 1.0
                 else:
